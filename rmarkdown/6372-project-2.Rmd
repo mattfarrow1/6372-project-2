@@ -1,0 +1,12 @@
+---
+title: '6372: Project 2'
+author: "Edward, Matt, Michael"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
