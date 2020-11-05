@@ -1,0 +1,17 @@
+---
+output:
+  word_document:
+    df_print: kable
+  pdf_document:
+    df_print: kable
+  html_document:
+    df_print: paged
+fig_caption: yes
+---
+
+
+```{r All.code, message=FALSE, warning=FALSE, eval=FALSE}
+# 1) Insert code here
+# 2) Knit (to Word DOC)
+# 3) Copy results from Word DOC into the Appendix of our document
+```
