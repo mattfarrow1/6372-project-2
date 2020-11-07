@@ -41,7 +41,9 @@ Hmisc::describe(bank)
 psych::describe(bank)
 # DataExplorer::create_report(bank)
 
-# Deal with Missing Values ------------------------------------------------
+# Data Cleanup ------------------------------------------------------------
+
+# Missing Values
 
 # Several things happening here:
 #     - Convert "unknown" to NA
@@ -55,6 +57,11 @@ bank_clean <- bank %>%
 
 # Count number of missing values in data set
 colSums(is.na(bank_clean))
+
+# Re-level factors
+sizes <- ordered(sizes, levels = c("small", "medium", "large"))
+bank$day_of_week <- ordered(bank$day_of_week, levels = c("mon", "tue", "wed", "thu", "fri"))
+bank$month <- ordered(bank$month, levels = c("mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"))
 
 # Examine the Data (Post-Cleanup) -----------------------------------------
 
@@ -71,7 +78,31 @@ inspectdf::inspect_cor(bank_clean)
 
 # EDA ---------------------------------------------------------------------
 
+# Day of Week
+bank_clean %>% 
+  ggplot(aes(day_of_week, fill= y)) +
+  geom_bar() +
+  labs(title = "Is there a more popular day of the week?",
+       x = "Day",
+       y = "Count",
+       fill = "Response") +
+  theme_minimal()
 
+# Feature Engineering -----------------------------------------------------
+
+# previous contact
+# pdays bucket
+# seasonal contact (summer vs. winter)
+
+bank_clean %>% 
+  # Are there any housing or personal loans?
+  mutate(any_loan = (housing == "yes" | loan == "yes")) %>% 
+  # Based on the EDA, it doesn't appear as though day of the week is necessarily
+  # notable, but I'll make a factor just in case
+  mutate(weekdays_3 = if_else(day_of_week == "mon", "Beginning",
+                              if_else(day_of_week == "fri", "End", "Middle"))) %>% 
+
+# Carnival is usually in Feb/Mar
 
 # Preprocess the Data -----------------------------------------------------
 
@@ -111,3 +142,6 @@ bank_clean_ds <- downSample(x = bank_clean[, -ncol(bank_clean)],
 
 # Look at the distribution
 table(bank_clean_ds$Class)
+
+
+# FEATURE ENGINEERING -----------------------------------------------------
