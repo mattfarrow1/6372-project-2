@@ -8,24 +8,34 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r library-setup}
 library(tidyverse)  # general data processing & plotting
 library(here)       # relative location references
 library(janitor)    # data cleanup tools
 library(naniar)     # dealing with missing values
 library(caret)      # misc functions for training and plotting classification and regression models
 library(tidymodels)
-library(GGally)
+library(GGally)     # for ggpairs
+library(MASS)       # for LDA/QDA
 ```
 
 # Load Data
 
-```{r}
+```{r load-data}
 # Read data
 bank <- read_delim(here("data - raw", "bank-additional", "bank-additional-full.csv"), 
                    ";", escape_double = FALSE, trim_ws = TRUE)
 
 # Clean column names
 bank <- clean_names(bank)
+
+# Quick examination of the data
+glimpse(bank)
+head(bank)
 ```
 
 ## Attribute Information ([source](https://archive.ics.uci.edu/ml/datasets/Bank%20Marketing))
@@ -65,33 +75,10 @@ bank <- clean_names(bank)
 ### Output Variable (Desired Target)
 21.   **y**: has the client subscribed to a term deposit?
 
-# Initial Data Examination
-
-```{r}
-# What are the dimensions of the data
-dim(bank)
-
-# Look at the first and last rows of data
-head(bank)
-tail(bank)
-glimpse(bank)
-
-# Summary statistics
-summary(bank)
-skimr::skim(bank)
-
-# Other possible functions for examining the data that may be helpful
-Hmisc::describe(bank)
-psych::describe(bank)
-# DataExplorer::create_report(bank)
-```
-
 # Data Cleanup
 
-```{r}
-# Missing Values
-
-# Several things happening here:
+```{r data-cleanup}
+# Address missing Values
 #     - Convert "unknown" to NA
 #     - 999 means client was not previously contacted
 #     - poutcome has a value "nonexistent" that is essentially missing 
@@ -100,9 +87,6 @@ bank_clean <- bank %>%
   replace_with_na_all(condition = ~ .x == "unknown") %>% 
   replace_with_na(replace = list(pdays = 999)) %>% 
   replace_with_na(replace = list(poutcome = "nonexistent"))
-
-# Count number of missing values in data set
-colSums(is.na(bank_clean))
 
 # Re-level factors
 bank_clean <- bank_clean %>% 
@@ -113,6 +97,7 @@ bank_clean <- bank_clean %>%
 bank_clean <- bank_clean %>% 
   rename(subscribed = y)
 
+# Feature engineering
 bank_clean <- bank_clean %>% 
   # Are there any housing or personal loans?
   mutate(any_loan = (housing == "yes" | loan == "yes")) %>% 
@@ -121,10 +106,15 @@ bank_clean <- bank_clean %>%
   mutate(weekdays_3 = if_else(day_of_week == "mon", "Beginning",
                               if_else(day_of_week == "fri", "End", "Middle")))
 
-
 # Convert character variables to factors
 bank_clean <- bank_clean %>%
   mutate(across(where(is_character), as_factor))
+
+# In exploring and considering the data, knowing the duration of the call is an
+# unknowable predictor going into a call. Therefore, we made the decision to
+# remove it from the data set.
+bank_clean <- bank_clean %>% 
+  dplyr::select(-duration)
 ```
 
 # Post-Cleanup Examination
@@ -138,16 +128,18 @@ skimr::skim(bank_clean)
 
 # Reports from inspectdf (categorical variables and Pearson correlation
 # coefficients)
-inspectdf::inspect_cat(bank_clean)
-inspectdf::inspect_cor(bank_clean)
-```
+bank_cat  <- inspectdf::inspect_cat(bank_clean)
+bank_pear <- inspectdf::inspect_cor(bank_clean)
 
-# Exploratory Data Analysis
+# Remove highly correlated variables
+bank_clean <- bank_clean %>% 
+  dplyr::select(-c(nr_employed))
 
-## Check for Correlation
+# Reexamine Pearson correlation coefficients
+bank_pear2 <- inspectdf::inspect_cor(bank_clean)
 
-```{r correlation, message=FALSE, warning=FALSE, echo=FALSE}
-# Run correlations and save output as images to be used in the appendix.
+# Visual check of correlations and save output as an image to be used in the
+# appendix
 ggcorr(
   bank_clean,
   label = TRUE,
@@ -158,24 +150,25 @@ ggcorr(
   hjust = 1
 )
 
-# ggsave(here::here("images", "correlation 1.png"))
+ggsave(here::here("images", "correlation 1.png"))
 ```
 
-```{r message=FALSE, warning=FALSE}
-# Examine the numeric data points
-numericals <- seq(1, length(bank_clean))[unlist(lapply(bank_clean, is.numeric))]
+# Exploratory Data Analysis
 
-# Correlation plot for numeric data points
-library(corrplot)
-source("http://www.sthda.com/upload/rquery_cormat.r")
-rquery.cormat(bank_clean[sapply(bank_clean, is.numeric)])
+## Examine Continuous Variables
+
+```{r message=FALSE, warning=FALSE}
+# Get indices of continuous variables
+numeric_cols <- seq(1, length(bank_clean))[unlist(lapply(bank_clean, is.numeric))]
 
 # Scatter plot matrix
-ggpairs(bank_clean, columns = numericals, ggplot2::aes(colour = subscribed))
+ggpairs(bank_clean, columns = numeric_cols, ggplot2::aes(colour = subscribed))
+
+ggsave(here::here("images", "correlation 2.png"))
 
 # Box plots of numeric variables
 bank_clean %>% 
-  select(age, duration, campaign, pdays, previous, emp_var_rate, cons_conf_idx, cons_price_idx, nr_employed, subscribed) %>%
+  dplyr::select(age, campaign, pdays, previous, cons_conf_idx, cons_price_idx, subscribed) %>%
   pivot_longer(., cols = -subscribed, names_to = "Var", values_to = "Val") %>% 
   ggplot(aes(Var, Val, fill = subscribed)) +
   geom_boxplot() +
@@ -183,6 +176,26 @@ bank_clean %>%
   labs(title = "Exploratory Data Analysis of Numeric Variables") +
   theme_minimal() +
   theme(legend.position = "bottom")
+
+ggsave(here::here("images", "numeric variables.png"))
+
+
+# Stacked bar plots of categorical variables
+bank_clean %>% 
+  dplyr::select(job, marital, education, default, housing, loan, contact, poutcome, weekdays_3, subscribed) %>% 
+  pivot_longer(., cols = -subscribed, names_to = "Var", values_to = "Val") %>% 
+  group_by(subscribed, Var) %>% 
+  count(Val) %>% 
+  filter(!is.na(Val)) %>% 
+  ggplot(aes(Val, n, fill = subscribed)) +
+  geom_col() +
+  facet_wrap(~ Var, scales = "free") +
+  coord_flip() +
+  labs(title = "Exploratory Data Analysis of Categorical Variables") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+ggsave(here::here("images", "categorical variables.png"))
 ```
 
 # Models
@@ -234,6 +247,107 @@ prediction_cart <- predict(cart1, newdata = test_data)
 # table(test_data$subscribed, prediction_cart > 0.20) # return confusion matrix. repeat for various threshold values
 summary(cart1)
 prp(cart1)
+```
+
+# LDA/QDA Model
+
+## Prep Data
+
+```{r lda}
+set.seed(123)
+
+# Create LDA data set.
+lda_data <- bank_clean %>% 
+  dplyr::select(c("subscribed",
+                  "cons_price_idx",
+                  "cons_conf_idx",
+                  "euribor3m"))
+
+# Examine the data
+skimr::skim(lda_data)
+
+# Check number of yes/no responses
+lda_data %>% 
+  count(subscribed)
+
+# Down-sample the data to get an equal number of yes and no responses
+lda_ds <- downSample(x = lda_data[, 2:4],
+                            y = lda_data$subscribed)
+
+# Double-check the number of yes/no responses
+lda_ds %>% 
+  count(Class)
+
+# Build test/train data sets
+lda_indices <- sample(nrow(lda_ds), size = floor(0.75 * nrow(lda_ds)))
+lda_train   <- as_tibble(lda_ds[lda_indices, ])
+lda_test    <- as_tibble(lda_ds[-lda_indices, ])
+```
+
+## LDA using MASS
+
+```{r}
+# Run LDA
+bank_lda <- lda(Class ~ cons_price_idx + cons_conf_idx + euribor3m, data = lda_train)
+
+# Make predictions
+bank_lda_predict <- predict(bank_lda, newdata = lda_test)$class
+
+# Define truth
+bank_lda_truth <- lda_test$Class
+
+# Generate confusion matrix
+confusionMatrix(bank_lda_predict,
+                bank_lda_truth)
+```
+
+## LDA using Caret
+
+```{r}
+# Define control parameters for train
+lda_control <- trainControl(
+  method = "cv",
+  number = 10,
+  savePredictions = T,
+  summaryFunction = twoClassSummary,
+  classProbs = T,
+)
+
+# LDA using Caret
+bank_lda <-
+  train(
+    Class ~ cons_price_idx + cons_conf_idx + euribor3m,
+    data = lda_train,
+    method = "lda",
+    trControl = lda_control
+  )
+
+# Make predictions
+bank_lda_predict <- predict(bank_lda, newdata = lda_test)
+
+# Define truth
+bank_lda_truth <- lda_test$Class
+
+# Generate confusion matrix
+confusionMatrix(bank_lda_predict,
+                bank_lda_truth)
+```
+
+## QDA
+
+```{r qda}
+# QDA
+bank_qda <- qda(Class ~ cons_price_idx + cons_conf_idx + euribor3m, data = lda_train)
+
+# Make predictions
+bank_qda_predict <- predict(bank_qda, newdata = lda_test)$class
+
+# Define truth
+bank_qda_truth <- lda_test$Class
+
+# Generate confusion matrix
+confusionMatrix(bank_qda_predict,
+                bank_qda_truth)
 ```
 
 # Appendix
