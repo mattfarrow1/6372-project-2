@@ -2,6 +2,8 @@
 title: '6372: Project 2'
 author: "Edward, Matt, Michael"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -111,7 +113,7 @@ bank_clean <- bank_clean %>%
 bank_clean <- bank_clean %>% 
   rename(subscribed = y)
 
-bank_clean %>% 
+bank_clean <- bank_clean %>% 
   # Are there any housing or personal loans?
   mutate(any_loan = (housing == "yes" | loan == "yes")) %>% 
   # Based on the EDA, it doesn't appear as though day of the week is necessarily
