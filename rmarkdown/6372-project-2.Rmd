@@ -23,6 +23,262 @@ library(GGally)     # for ggpairs
 library(MASS)       # for LDA/QDA
 ```
 
+# EDA From SAS
+
+## Project Portions
+
+-   EDA from SAS - **Edward**
+-   Data Cleanup/Sampling - **Matt**
+-   Model 1 - **Edward**
+-   Model 2 Interaction - **???**
+-   Model 3 LDA - **Matt**
+-   Model 4 Tree - **Mike**
+-   Model to Model (of Duration) - **???**
+
+## Summary
+
+### Variables that seem to matter
+
+-   **Categorical**: Job, Education, Contact, Month, Marital, Day\_of\_week, Housing
+-   **Continuous**: Duration, Campaign, Emp\_var\_rate, Euribor3m, Nr\_employed, Previous
+
+### Variables that don't seem to matter
+
+-   **Categorical**: Default, Loan
+-   **Continuous**: Age, Cons\_price\_idx, Cons\_conf\_idx
+
+### Variables that are junk/incomplete data that doesn't add explanatory or predictive capabilities
+
+-   **Categorical**: Poutcome
+-   **Continuous**: Pdays
+
+### Missing values
+
+-   For categorical, replace with the Mode for each one (listed below)
+
+-   For continuous, only Pdays is missing, and we should delete it, but for completeness, replace with median (6)
+
+-   VIF: Variable Inflation Factor
+
+    -   Emp\_var\_rate, Euribor3m, Nr\_employed, Cons\_price\_idx, and Cons\_conf\_idx are all really just measures of time.
+    -   They coordinate heavily with "what is the month"
+    -   PCA should reveal that all of these continuous variables can be coordinated together and further, the month tells you the results as a category
+    -   Alternately, ignore the month and use these variables to predict, but don't use both
+
+## Categorical Variables
+
+### PROC FREQ 
+
+-   **Average**: No=88.7, %Yes=11.3%
+
+-   **Total responses**: 41,188
+
+-   **Job**
+
+    -   Very strong
+
+    -   Above average: student 31%, retired 25%, Unemployed 14%
+
+    -   Below average: entrepreneur 8.5%, services 8%, blue-collar 7%
+
+    -   Mode: Admin 10,422
+
+    -   p-value \< 0.0001
+
+-   **Marital**
+
+    -   Above average: Single 14%
+
+    -   Below average: married, 10.2%, divorced 10.3%
+
+    -   Mode: married 24,928
+
+    -   p-value \< 0.0001
+
+-   **Education**
+
+    -   Above average: illiterate 22%, university degree 14%
+
+    -   Below average: Basic 9y 7.8%, Basic 6y 8.2%, Basic 4y 10.3%
+
+    -   Mode: university degree 12,168
+
+    -   p-value \< 0.0001
+
+-   **Default** - Should definitely ignore this field
+
+    -   Mode: No, 32,588 (only 3 yes' in the whole dataset)
+
+    -   p-value \< 0.5054
+
+-   **Housing**
+
+    -   Above average: Yes 11.6%
+
+    -   Below average: No 10.9%
+
+    -   Mode: Yes 21,576
+
+    -   p-value \< 0.02
+
+-   **Loan** - Does not seem to be statistically significant
+
+    -   Above average: No 11.3%
+
+    -   Below average: Yes 10.9%
+
+    -   Mode: No 33,950
+
+    -   p-value = 0.3479
+
+-   **Contact**
+
+    -   Above average: Cellular 15%
+
+    -   Below average: telephone 5%
+
+    -   Mode: Cellular 26,144
+
+    -   p-value \< 0.0001
+
+-   **Month**
+
+    -   Above average: Mar 51%, Dec 49%, Sep 45%, Oct 44%, Apr 20% [So basically, Sep-Mar except Nov is odd]
+
+    -   Below average: May 6%, Jul 9%, Nov 10%, Jun 10.5%, Aug 10.6%
+
+    -   Not in dataset: Jan, Feb
+
+    -   Mode: May 13,769
+
+    -   No Missing Data
+
+    -   p-value \< 0.0001
+
+-   **Day of Week**
+
+    -   Above average: Thu 12.1%, Tue 11.8%, Wed 11.7%
+
+    -   Below average: Mon 10%, Fri 10.8%
+
+    -   Not in dataset: Sat, Sun
+
+    -   Mode: Thu 8,623
+
+    -   No Missing Data
+
+    -   p-value \< 0.0001
+
+-   **Poutcome**
+
+    -   Somewhat misleading variable (when it's present which isn't very often, Yes is above average in both cases)
+
+    -   Above average: Success 65%, Failure 14%
+
+    -   Below average: NONE (see note above)
+
+    -   Mode: Failure 4,252
+
+    -   p-value \< 0.0001
+
+## Continuous Variables
+
+### PROC MEANS 
+
+-   **Counts**
+
+    -   No=36,548, Yes=4,640
+
+    -   Only continuous variable with missing values is PDAYS
+
+-   **Total responses**: 41,188
+
+-   **age**
+
+    -   No: Mean 39.9, Median 38
+
+    -   Yes: Mean 40.9, Median 37
+
+-   **duration**
+
+    -   No: Mean 221, Median 164, Min 0
+
+    -   Yes: Mean 553, Median 449, Min 37
+
+    -   Longer the call, the more Yes increases
+
+    -   If the call lasts 36 or fewer seconds, it is No 100% of the time
+
+-   **campaign**
+
+    -   No: Mean 2.6, Max 56
+
+    -   Yes: Mean 2.0, Max 23
+
+    -   Median: 2 (for both yes and no)
+
+    -   Fewer the campaigns, the more Yes increases - If there are more than 23 campaigns, it is No 100% of the time
+
+-   **pdays**
+
+    -   Recommend we discard this variable
+
+    -   Massive missing continuous variable
+
+    -   No real difference between continuous values for yes and no, but:
+
+    -   Misleading: when variable exists, Yes is the outcome for Subscribed 64% of the time
+
+    -   Median: 6 (for both yes and no)
+
+-   **previous**
+
+    -   No: Mean 0.13
+
+    -   Yes: Mean 0.49
+
+    -   Median: 0 (for both yes and no)
+
+-   **emp\_var\_rate**
+
+    -   No: Mean 0.25, Median 1.1
+
+    -   Yes: Mean -1.2, Median -1.8
+
+    -   The lower the emp\_var\_rate, the more likely to get a Yes. In other words, negatively correlated.
+
+-   **cons\_price\_idx**
+
+    -   Doesn't seem to be very significant
+
+    -   No: Mean 94, Median 94
+
+    -   Yes: Mean 93, Median 93
+
+-   **cons\_conf\_idx**
+
+    -   Doesn't seem to be very significant
+
+    -   No: Mean -41, Median -42
+
+    -   Yes: Mean -40, Median -40
+
+-   **euribor3m**
+
+    -   No: Mean 3.8, Median 4.9
+
+    -   Yes: Mean 2.1, Median 1.3
+
+    -   The lower the euribor3m interest rate, the more likely to get a Yes. In other words, negatively correlated.
+
+-   **nr\_employed**
+
+    -   No: Mean 5176, Median 5196
+
+    -   Yes: Mean 5095, Median 5099
+
+    -   The lower the nr\_employed rate, the more likely to get a Yes. In other words, negatively correlated.
+
 # Load Data
 
 ```{r load-data}
@@ -42,79 +298,88 @@ head(bank)
 
 ### Bank Client Data
 
-1.    **age**
-2.    **job**: type of job
-3.    **marital**: marital status
-4.    **education**
-5.    **default**: has credit in default? 
-6.    **housing**: has housing loan?
-7.    **loan**: has personal loan?
+1.  **age**
+2.  **job**: type of job
+3.  **marital**: marital status
+4.  **education**
+5.  **default**: has credit in default?
+6.  **housing**: has housing loan?
+7.  **loan**: has personal loan?
 
 ### Related with the Last Contact of the Current Campaign
 
-8.    **contact**: contact communication type
-9.    **month**: last contact month of year 
-10.   **day_of_week**: last contact day of the week
-11.   **duration**: last contact duration, in seconds. Important note: this attribute highly affects the output target (e.g., if duration=0 then y='no'). Yet, the duration is not known before a call is performed. Also, after the end of the call y is obviously known. Thus, this input should only be included for benchmark purposes and should be discarded if the intention is to have a realistic predictive model.
+8.  **contact**: contact communication type
+9.  **month**: last contact month of year
+10. **day\_of\_week**: last contact day of the week
+11. **duration**: last contact duration, in seconds. Important note: this attribute highly affects the output target (e.g., if duration=0 then y='no'). Yet, the duration is not known before a call is performed. Also, after the end of the call y is obviously known. Thus, this input should only be included for benchmark purposes and should be discarded if the intention is to have a realistic predictive model.
 
 ### Other Attributes
 
-12.   **campaign**: number of contacts performed during this campaign and for this client (includes last contact)
-13.   **pdays**: number of days that passed by after the client was last contacted from a previous campaign (999 means client was not previously contacted)
-14.   **previous**: number of contacts performed before this campaign and for this client
-15.   **poutcome**: outcome of the previous marketing campaign
+12. **campaign**: number of contacts performed during this campaign and for this client (includes last contact)
+13. **pdays**: number of days that passed by after the client was last contacted from a previous campaign (999 means client was not previously contacted)
+14. **previous**: number of contacts performed before this campaign and for this client
+15. **poutcome**: outcome of the previous marketing campaign
 
 ### Social and Economic Context Attributes
 
-16.   **emp.var.rate**: employment variation rate - quarterly indicator
-17.   **cons.price.idx**: consumer price index - monthly indicator
-18.   **cons.conf.idx**: consumer confidence index - monthly indicator
-19.   **euribor3m**: euribor 3 month rate - daily indicator
-20.   **nr.employed**: number of employees - quarterly indicator
+16. **emp.var.rate**: employment variation rate - quarterly indicator
+17. **cons.price.idx**: consumer price index - monthly indicator
+18. **cons.conf.idx**: consumer confidence index - monthly indicator
+19. **euribor3m**: euribor 3 month rate - daily indicator
+20. **nr.employed**: number of employees - quarterly indicator
 
 ### Output Variable (Desired Target)
-21.   **y**: has the client subscribed to a term deposit?
 
-# Data Cleanup
+21. **y**: has the client subscribed to a term deposit?
 
-```{r data-cleanup}
-# Address missing Values
-#     - Convert "unknown" to NA
-#     - 999 means client was not previously contacted
-#     - poutcome has a value "nonexistent" that is essentially missing 
-#       since the prospect was not contacted
+# Address Missing Values
+
+## Categorical Variables
+
+```{r missing-categorical}
+# Begin by replacing missing value placeholders with NA
 bank_clean <- bank %>% 
   replace_with_na_all(condition = ~ .x == "unknown") %>% 
   replace_with_na(replace = list(pdays = 999)) %>% 
   replace_with_na(replace = list(poutcome = "nonexistent"))
-
-# Re-level factors
+  
+# Replace each missing value in a categorical variable with the mode as
+# determined during SAS EDA
 bank_clean <- bank_clean %>% 
-  mutate(day_of_week = ordered(bank$day_of_week, levels = c("mon", "tue", "wed", "thu", "fri")),
-         month = ordered(bank$month, levels = c("mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")))
+  mutate(job         = replace_na(job,         "admin."),
+         marital     = replace_na(marital,     "married"),
+         housing     = replace_na(housing,     "yes"),
+         loan        = replace_na(housing,     "no"),
+         contact     = replace_na(contact,     "cellular"),
+         education   = replace_na(education,   "university.degree"),
+         month       = replace_na(month,       "may"),
+         day_of_week = replace_na(day_of_week, "thu"),
+         poutcome    = replace_na(poutcome,    "failure"))
 
+# Drop `default` column since there are only 3 "Yes" values
+bank_clean <- bank_clean %>% 
+  dplyr::select(-default)
+```
+
+## Continuous Variables
+
+```{r missing-continuous}
+# Only Pdays is missing, and we should delete it, but for completeness, replace
+# with median (6)
+bank_clean <- bank_clean %>% 
+  mutate(pdays = replace_na(pdays, 6))
+```
+
+## Additional Cleanup
+
+```{r}
 # Rename response variable
 bank_clean <- bank_clean %>% 
   rename(subscribed = y)
 
-# Feature engineering
+# Convert all character variables to factors
 bank_clean <- bank_clean %>% 
-  # Are there any housing or personal loans?
-  mutate(any_loan = (housing == "yes" | loan == "yes")) %>% 
-  # Based on the EDA, it doesn't appear as though day of the week is necessarily
-  # notable, but I'll make a factor just in case
-  mutate(weekdays_3 = if_else(day_of_week == "mon", "Beginning",
-                              if_else(day_of_week == "fri", "End", "Middle")))
-
-# Convert character variables to factors
-bank_clean <- bank_clean %>%
-  mutate(across(where(is_character), as_factor))
-
-# In exploring and considering the data, knowing the duration of the call is an
-# unknowable predictor going into a call. Therefore, we made the decision to
-# remove it from the data set.
-bank_clean <- bank_clean %>% 
-  dplyr::select(-duration)
+  mutate(across(where(is_character),as_factor))
 ```
 
 # Post-Cleanup Examination
@@ -130,73 +395,47 @@ skimr::skim(bank_clean)
 # coefficients)
 bank_cat  <- inspectdf::inspect_cat(bank_clean)
 bank_pear <- inspectdf::inspect_cor(bank_clean)
-
-# Remove highly correlated variables
-bank_clean <- bank_clean %>% 
-  dplyr::select(-c(nr_employed))
-
-# Reexamine Pearson correlation coefficients
-bank_pear2 <- inspectdf::inspect_cor(bank_clean)
-
-# Visual check of correlations and save output as an image to be used in the
-# appendix
-ggcorr(
-  bank_clean,
-  label = TRUE,
-  label_alpha = TRUE,
-  label_size = 3,
-  layout.exp = 2,
-  cex = 3.5,
-  hjust = 1
-)
-
-ggsave(here::here("images", "correlation 1.png"))
 ```
 
-# Exploratory Data Analysis
+# Create Test/Train Splits and Save Data
 
-## Examine Continuous Variables
+```{r}
+# Set seed
+set.seed(123)
 
-```{r message=FALSE, warning=FALSE}
-# Get indices of continuous variables
-numeric_cols <- seq(1, length(bank_clean))[unlist(lapply(bank_clean, is.numeric))]
+# Save full bank_clean data set
+write_csv(bank_clean, here("data - output", "bank_clean.csv"))
 
-# Scatter plot matrix
-ggpairs(bank_clean, columns = numeric_cols, ggplot2::aes(colour = subscribed))
+# Create test/train data sets of full data
+inTraining <- createDataPartition(bank_clean$subscribed, p = .75, list = FALSE)
+training <- bank_clean[ inTraining,]
+testing  <- bank_clean[-inTraining,]
 
-ggsave(here::here("images", "correlation 2.png"))
+# Save bank_clean test/train sets
+write_csv(training, here("data - output", "bank_clean_train.csv"))
+write_csv(testing, here("data - output", "bank_clean_test.csv"))
 
-# Box plots of numeric variables
-bank_clean %>% 
-  dplyr::select(age, campaign, pdays, previous, cons_conf_idx, cons_price_idx, subscribed) %>%
-  pivot_longer(., cols = -subscribed, names_to = "Var", values_to = "Val") %>% 
-  ggplot(aes(Var, Val, fill = subscribed)) +
-  geom_boxplot() +
-  facet_wrap(~ Var, scales = "free") +
-  labs(title = "Exploratory Data Analysis of Numeric Variables") +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+# Down-sample the data to get an equal number of yes and no responses
+bank_clean_ds <- downSample(x = bank_clean[, 1:19],
+                            y = bank_clean$subscribed)
 
-ggsave(here::here("images", "numeric variables.png"))
+# Double-check the number of yes/no responses
+bank_clean_ds %>% 
+  count(Class)
 
+# Save downsampled data set
+write_csv(bank_clean_ds, here("data - output", "bank_clean_downsampled.csv"))
 
-# Stacked bar plots of categorical variables
-bank_clean %>% 
-  dplyr::select(job, marital, education, default, housing, loan, contact, poutcome, weekdays_3, subscribed) %>% 
-  pivot_longer(., cols = -subscribed, names_to = "Var", values_to = "Val") %>% 
-  group_by(subscribed, Var) %>% 
-  count(Val) %>% 
-  filter(!is.na(Val)) %>% 
-  ggplot(aes(Val, n, fill = subscribed)) +
-  geom_col() +
-  facet_wrap(~ Var, scales = "free") +
-  coord_flip() +
-  labs(title = "Exploratory Data Analysis of Categorical Variables") +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+# Create test/train data sets of downsampled data
+inTraining <- createDataPartition(bank_clean_ds$Class, p = .75, list = FALSE)
+training <- bank_clean_ds[ inTraining,]
+testing  <- bank_clean_ds[-inTraining,]
 
-ggsave(here::here("images", "categorical variables.png"))
+# Save downsampled data test/train sets
+write_csv(training, here("data - output", "bank_clean_ds_train.csv"))
+write_csv(testing, here("data - output", "bank_clean_ds_test.csv"))
 ```
+
 
 # Models
 
@@ -352,7 +591,7 @@ confusionMatrix(bank_qda_predict,
 
 # Appendix
 
-## R Code {-}
+## R Code {.unnumbered}
 
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 
