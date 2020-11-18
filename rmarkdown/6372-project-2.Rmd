@@ -404,7 +404,7 @@ bank_pear <- inspectdf::inspect_cor(bank_clean)
 set.seed(123)
 
 # Save full bank_clean data set
-write_csv(bank_clean, here("data - output", "bank_clean.csv"))
+# write_csv(bank_clean, here("data - output", "bank_clean.csv"))
 
 # Create test/train data sets of full data
 inTraining <- createDataPartition(bank_clean$subscribed, p = .75, list = FALSE)
@@ -412,8 +412,8 @@ training <- bank_clean[ inTraining,]
 testing  <- bank_clean[-inTraining,]
 
 # Save bank_clean test/train sets
-write_csv(training, here("data - output", "bank_clean_train.csv"))
-write_csv(testing, here("data - output", "bank_clean_test.csv"))
+# write_csv(training, here("data - output", "bank_clean_train.csv"))
+# write_csv(testing, here("data - output", "bank_clean_test.csv"))
 
 # Down-sample the data to get an equal number of yes and no responses
 bank_clean_ds <- downSample(x = bank_clean[, 1:19],
@@ -424,7 +424,7 @@ bank_clean_ds %>%
   count(Class)
 
 # Save downsampled data set
-write_csv(bank_clean_ds, here("data - output", "bank_clean_downsampled.csv"))
+# write_csv(bank_clean_ds, here("data - output", "bank_clean_downsampled.csv"))
 
 # Create test/train data sets of downsampled data
 inTraining <- createDataPartition(bank_clean_ds$Class, p = .75, list = FALSE)
@@ -432,161 +432,99 @@ training <- bank_clean_ds[ inTraining,]
 testing  <- bank_clean_ds[-inTraining,]
 
 # Save downsampled data test/train sets
-write_csv(training, here("data - output", "bank_clean_ds_train.csv"))
-write_csv(testing, here("data - output", "bank_clean_ds_test.csv"))
-```
-
-
-# Models
-
-```{r}
-library(caTools)
-set.seed(123)
-split <- sample.split(bank_clean$subscribed, SplitRatio = 0.60)
-train_data <- subset(bank_clean, split == TRUE)
-test_data <- subset(bank_clean, split == FALSE)
-
-# Logistic regression model 1
-model1 <-
-  glm(
-    subscribed ~ month + day_of_week + campaign + emp_var_rate + contact + poutcome + cons_conf_idx,
-    data = train_data,
-    family = binomial
-  )
-
-# Get summary of model1
-summary(model1)
-
-predict_test <- predict(model1, type = "response", newdata = test_data)
-summary(predict_test)
-table(test_data$subscribed, predict_test > 0.20) # return confusion matrix. repeat for various threshold values
-
-library(ROCR)
-# Use this code chunk to find ROC curve and calculate AUC
-# ROCRpred <- prediction(predict_test, test_data$subscribed)
-# as.numeric(performance(ROCRpred, "auc")@y.values)
-# ROCRperf <- performance(ROCRpred, "tpr", "fpr")
-# plot(ROCRperf, colorize = TRUE, print.cutoffs.at = seq(0, 1, 0.005), text.adj = c(-0.2, 1.7))
-
-# Build and analyze regression tree
-library(rpart)
-library(rpart.plot)
-cart1 <-
-  rpart(
-    subscribed ~ job + default + education + housing + loan + contact + poutcome,
-    data = train_data,
-    control = rpart.control(
-      minsplit = 1,
-      minbucket = 20,
-      cp = 0.001
-    )
-  )
-
-prediction_cart <- predict(cart1, newdata = test_data)
-# table(test_data$subscribed, prediction_cart > 0.20) # return confusion matrix. repeat for various threshold values
-summary(cart1)
-prp(cart1)
+# write_csv(training, here("data - output", "bank_clean_ds_train.csv"))
+# write_csv(testing, here("data - output", "bank_clean_ds_test.csv"))
 ```
 
 # LDA/QDA Model
 
-## Prep Data
+## LDA
 
 ```{r lda}
 set.seed(123)
 
-# Create LDA data set.
-lda_data <- bank_clean %>% 
-  dplyr::select(c("subscribed",
-                  "cons_price_idx",
-                  "cons_conf_idx",
-                  "euribor3m"))
+# Create LDA data set
+lda_data <- bank_clean_ds %>% 
+  dplyr::select(c(1, 10:13, 15:17, 19:20)) # class + numeric columns + drop euribor3m
 
-# Examine the data
-skimr::skim(lda_data)
+# Check for collinearity
+view(inspectdf::inspect_cor(lda_data))
 
-# Check number of yes/no responses
-lda_data %>% 
-  count(subscribed)
+# Create test/train data sets of downsampled data
+inTraining <- createDataPartition(lda_data$Class, p = .75, list = FALSE)
+training <- lda_data[ inTraining,]
+testing  <- lda_data[-inTraining,]
 
-# Down-sample the data to get an equal number of yes and no responses
-lda_ds <- downSample(x = lda_data[, 2:4],
-                            y = lda_data$subscribed)
+# Estimate preprocessing parameters 
+preproc_parameter <- training %>%  
+  preProcess(method = c("center", "scale")) 
+  
+# Transform the data using the estimated parameters 
+train_transform <- preproc_parameter %>% predict(training) 
+test_transform <- preproc_parameter %>% predict(testing) 
+  
+# Fit the model 
+lda_model <- lda(Class ~ ., data = train_transform) 
 
-# Double-check the number of yes/no responses
-lda_ds %>% 
-  count(Class)
+# Look at the model  
+lda_model
 
-# Build test/train data sets
-lda_indices <- sample(nrow(lda_ds), size = floor(0.75 * nrow(lda_ds)))
-lda_train   <- as_tibble(lda_ds[lda_indices, ])
-lda_test    <- as_tibble(lda_ds[-lda_indices, ])
-```
+# Make predictions 
+lda_predictions <- lda_model %>% predict(test_transform)
 
-## LDA using MASS
-
-```{r}
-# Run LDA
-bank_lda <- lda(Class ~ cons_price_idx + cons_conf_idx + euribor3m, data = lda_train)
-
-# Make predictions
-bank_lda_predict <- predict(bank_lda, newdata = lda_test)$class
-
-# Define truth
-bank_lda_truth <- lda_test$Class
+# Model accuracy 
+mean(lda_predictions$class == test_transform$Class)
 
 # Generate confusion matrix
-confusionMatrix(bank_lda_predict,
-                bank_lda_truth)
-```
+confusionMatrix(predict(lda_model, newdata = test_transform)$class,
+                test_transform$Class)
 
-## LDA using Caret
+# Get the posteriors as a tibble
+lda_posteriors <- tibble(predict(lda_model, newdata = test_transform)$posterior)
 
-```{r}
-# Define control parameters for train
-lda_control <- trainControl(
-  method = "cv",
-  number = 10,
-  savePredictions = T,
-  summaryFunction = twoClassSummary,
-  classProbs = T,
-)
+# Create and plot ROC curve for LDA model
+library(ROCR)
+lda_predict <- prediction(lda_predictions$posterior[,2], test_transform$Class)
+lda_perf    <- performance(lda_predict, "tpr", "fpr")
 
-# LDA using Caret
-bank_lda <-
-  train(
-    Class ~ cons_price_idx + cons_conf_idx + euribor3m,
-    data = lda_train,
-    method = "lda",
-    trControl = lda_control
-  )
-
-# Make predictions
-bank_lda_predict <- predict(bank_lda, newdata = lda_test)
-
-# Define truth
-bank_lda_truth <- lda_test$Class
-
-# Generate confusion matrix
-confusionMatrix(bank_lda_predict,
-                bank_lda_truth)
+library(ggfortify)
+autoplot(lda_perf) +
+  labs(title = "LDA Model",
+       subtitle = "True Positive Rate vs. False Positive Rate",
+       x = "False Positive Rate",
+       y = "True Positive Rate") +
+  theme_minimal()
 ```
 
 ## QDA
 
 ```{r qda}
 # QDA
-bank_qda <- qda(Class ~ cons_price_idx + cons_conf_idx + euribor3m, data = lda_train)
+qda_model <- qda(Class ~ ., data = train_transform)
 
 # Make predictions
-bank_qda_predict <- predict(bank_qda, newdata = lda_test)$class
+qda_predictions <- qda_model %>% predict(test_transform)
 
-# Define truth
-bank_qda_truth <- lda_test$Class
+# Model accuracy
+mean(qda_predictions$class == test_transform$Class)
 
 # Generate confusion matrix
-confusionMatrix(bank_qda_predict,
-                bank_qda_truth)
+confusionMatrix(predict(qda_model, newdata = test_transform)$class,
+                test_transform$Class)
+
+# Get the posteriors as a tibble
+qda_posteriors <- tibble(predict(qda_model, newdata = test_transform)$posterior)
+
+# Create and plot ROC curve for LDA model
+qda_predict <- prediction(qda_predictions$posterior[,2], test_transform$Class)
+qda_perf    <- performance(qda_predict, "tpr", "fpr")
+
+autoplot(qda_perf) +
+  labs(title = "QDA Model",
+       subtitle = "True Positive Rate vs. False Positive Rate",
+       x = "False Positive Rate",
+       y = "True Positive Rate") +
+  theme_minimal()
 ```
 
 # Appendix
