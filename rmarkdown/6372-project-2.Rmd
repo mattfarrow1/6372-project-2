@@ -498,6 +498,11 @@ autoplot(lda_perf) +
        x = "False Positive Rate",
        y = "True Positive Rate") +
   theme_minimal()
+
+# Calculate AUC
+lda_auc <- performance(lda_predict, measure = "auc")
+lda_auc <- lda_auc@y.values[[1]]
+lda_auc
 ```
 
 ## QDA
@@ -529,6 +534,11 @@ autoplot(qda_perf) +
        x = "False Positive Rate",
        y = "True Positive Rate") +
   theme_minimal()
+
+# Calculate AUC
+qda_auc <- performance(qda_predict, measure = "auc")
+qda_auc <- qda_auc@y.values[[1]]
+qda_auc
 ```
 
 # Appendix
