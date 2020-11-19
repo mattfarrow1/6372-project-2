@@ -468,7 +468,7 @@ train_transform <- preproc_parameter %>% predict(training)
 test_transform <- preproc_parameter %>% predict(testing) 
   
 # Fit the model 
-lda_model <- lda(Class ~ ., data = train_transform) 
+lda_model <- lda(subscribed ~ ., data = train_transform) 
 
 # Look at the model  
 lda_model
@@ -477,18 +477,18 @@ lda_model
 lda_predictions <- lda_model %>% predict(test_transform)
 
 # Model accuracy 
-mean(lda_predictions$class == test_transform$Class)
+mean(lda_predictions$class == test_transform$subscribed)
 
 # Generate confusion matrix
 confusionMatrix(predict(lda_model, newdata = test_transform)$class,
-                test_transform$Class)
+                test_transform$subscribed)
 
 # Get the posteriors as a tibble
 lda_posteriors <- tibble(predict(lda_model, newdata = test_transform)$posterior)
 
 # Create and plot ROC curve for LDA model
 library(ROCR)
-lda_predict <- prediction(lda_predictions$posterior[,2], test_transform$Class)
+lda_predict <- prediction(lda_predictions$posterior[,2], test_transform$subscribed)
 lda_perf    <- performance(lda_predict, "tpr", "fpr")
 
 library(ggfortify)
@@ -504,23 +504,23 @@ autoplot(lda_perf) +
 
 ```{r qda}
 # QDA
-qda_model <- qda(Class ~ ., data = train_transform)
+qda_model <- qda(subscribed ~ ., data = train_transform)
 
 # Make predictions
 qda_predictions <- qda_model %>% predict(test_transform)
 
 # Model accuracy
-mean(qda_predictions$class == test_transform$Class)
+mean(qda_predictions$class == test_transform$subscribed)
 
 # Generate confusion matrix
 confusionMatrix(predict(qda_model, newdata = test_transform)$class,
-                test_transform$Class)
+                test_transform$subscribed)
 
 # Get the posteriors as a tibble
 qda_posteriors <- tibble(predict(qda_model, newdata = test_transform)$posterior)
 
 # Create and plot ROC curve for LDA model
-qda_predict <- prediction(qda_predictions$posterior[,2], test_transform$Class)
+qda_predict <- prediction(qda_predictions$posterior[,2], test_transform$subscribed)
 qda_perf    <- performance(qda_predict, "tpr", "fpr")
 
 autoplot(qda_perf) +
