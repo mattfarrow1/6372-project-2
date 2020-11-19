@@ -349,7 +349,7 @@ bank_clean <- bank_clean %>%
   mutate(job         = replace_na(job,         "admin."),
          marital     = replace_na(marital,     "married"),
          housing     = replace_na(housing,     "yes"),
-         loan        = replace_na(housing,     "no"),
+         loan        = replace_na(loan,        "no"),
          contact     = replace_na(contact,     "cellular"),
          education   = replace_na(education,   "university.degree"),
          month       = replace_na(month,       "may"),
@@ -419,15 +419,19 @@ testing  <- bank_clean[-inTraining,]
 bank_clean_ds <- downSample(x = bank_clean[, 1:19],
                             y = bank_clean$subscribed)
 
+# Rename `Class` to `subscribed`
+bank_clean_ds <- bank_clean_ds %>% 
+  rename(subscribed = Class)
+
 # Double-check the number of yes/no responses
 bank_clean_ds %>% 
-  count(Class)
+  count(subscribed)
 
 # Save downsampled data set
 # write_csv(bank_clean_ds, here("data - output", "bank_clean_downsampled.csv"))
 
 # Create test/train data sets of downsampled data
-inTraining <- createDataPartition(bank_clean_ds$Class, p = .75, list = FALSE)
+inTraining <- createDataPartition(bank_clean_ds$subscribed, p = .75, list = FALSE)
 training <- bank_clean_ds[ inTraining,]
 testing  <- bank_clean_ds[-inTraining,]
 
