@@ -10,6 +10,13 @@ LIBNAME STATS "/home/u43010517/sasuser.v94/STATS/DS6372";
 RUN;
 TITLE "Logistic Regression";
 
+*/ Matt's code to run the file on his machine /*
+*PROC IMPORT REPLACE DATAFILE="Y:\R\6372-project-2\data - \bank_clean.csv"
+*	DBMS=CSV
+*	OUT=Bank;
+*	GETNAMES=YES;
+*RUN;
+
 * Explore data;
 PROC FREQ DATA=STATS.BANK;
 *		default*subscribed;

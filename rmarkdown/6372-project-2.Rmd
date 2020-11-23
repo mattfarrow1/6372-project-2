@@ -455,7 +455,7 @@ lda_data <- bank_clean_ds %>%
 view(inspectdf::inspect_cor(lda_data))
 
 # Create test/train data sets of downsampled data
-inTraining <- createDataPartition(lda_data$Class, p = .75, list = FALSE)
+inTraining <- createDataPartition(lda_data$subscribed, p = .75, list = FALSE)
 training <- lda_data[ inTraining,]
 testing  <- lda_data[-inTraining,]
 
@@ -486,23 +486,28 @@ confusionMatrix(predict(lda_model, newdata = test_transform)$class,
 # Get the posteriors as a tibble
 lda_posteriors <- tibble(predict(lda_model, newdata = test_transform)$posterior)
 
-# Create and plot ROC curve for LDA model
+# Create prediction and performance values
 library(ROCR)
 lda_predict <- prediction(lda_predictions$posterior[,2], test_transform$subscribed)
 lda_perf    <- performance(lda_predict, "tpr", "fpr")
 
+# Calculate AUC
+lda_auc <- performance(lda_predict, measure = "auc")
+lda_auc <- lda_auc@y.values[[1]]
+lda_auc
+
+# Create and plot ROC curve for LDA model
 library(ggfortify)
 autoplot(lda_perf) +
   labs(title = "LDA Model",
        subtitle = "True Positive Rate vs. False Positive Rate",
        x = "False Positive Rate",
        y = "True Positive Rate") +
+  annotate(
+    geom = "text", x = 0.50, y = 0.50, 
+    label = paste("AUC =", round(lda_auc, 4)), size = 6
+  ) +
   theme_minimal()
-
-# Calculate AUC
-lda_auc <- performance(lda_predict, measure = "auc")
-lda_auc <- lda_auc@y.values[[1]]
-lda_auc
 ```
 
 ## QDA
@@ -524,21 +529,26 @@ confusionMatrix(predict(qda_model, newdata = test_transform)$class,
 # Get the posteriors as a tibble
 qda_posteriors <- tibble(predict(qda_model, newdata = test_transform)$posterior)
 
-# Create and plot ROC curve for LDA model
+# Create prediction and performance values
 qda_predict <- prediction(qda_predictions$posterior[,2], test_transform$subscribed)
 qda_perf    <- performance(qda_predict, "tpr", "fpr")
-
-autoplot(qda_perf) +
-  labs(title = "QDA Model",
-       subtitle = "True Positive Rate vs. False Positive Rate",
-       x = "False Positive Rate",
-       y = "True Positive Rate") +
-  theme_minimal()
 
 # Calculate AUC
 qda_auc <- performance(qda_predict, measure = "auc")
 qda_auc <- qda_auc@y.values[[1]]
 qda_auc
+
+# Create and plot ROC curve for LDA model
+autoplot(qda_perf) +
+  labs(title = "QDA Model",
+       subtitle = "True Positive Rate vs. False Positive Rate",
+       x = "False Positive Rate",
+       y = "True Positive Rate") +
+    annotate(
+    geom = "text", x = 0.50, y = 0.50, 
+    label = paste("AUC =", round(qda_auc, 4)), size = 6
+  ) +
+  theme_minimal()
 ```
 
 # Appendix
